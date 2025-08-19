@@ -34,6 +34,11 @@ pip install -r requirements.txt
 ```
 Make sure you have your document files in the docs/ fodler and modesl in the models/ directory.
 
+For faster vector store search:
+```bash
+pip install faiss-gpu-cu12
+```
+
 ## Usage
 
 1. Build the vector store
@@ -80,9 +85,9 @@ Type exit to quit.
 - (Optional) A machine with GPUs for faster inferencing times.
 
 ## TODOs
-1. Implement more usable docs. Currently only supports .txt, .md, and .pdf files. Need to add .py and .docx at the very least.
-2. Implement user conversation logging. This will help with looking at previous queries and answers.
-3. Colored logging to help pretty-print in terminal use.
-4. Tqdm for think time? If not, at least print resulting thought time.
-5. Clean repo with ruff.
-6. Test on larger docs and larger prompts.
+1. Implement user conversation logging. This will help with looking at previous queries and answers.
+2. Colored logging to help pretty-print in terminal use.
+3. Tqdm for think time? If not, at least print resulting thought time.
+4. Clean repo with ruff.
+5. Add line specifiers or page specifiers for each doc for more precise citations.
+6. Make it so that the models get downloaded to the local models folder instead of the computer cache, so models populate automatically when online.

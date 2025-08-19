@@ -1,11 +1,18 @@
-from langchain_community.vectorstores import FAISS
+"""Main for running LLM doc citing.
+
+This script runs ChatGPT4 locally and uses a vector store
+of given documents to create citations when answering questions.
+"""
+
 from langchain.prompts import PromptTemplate
+from langchain_community.vectorstores import FAISS
+from transformers import GenerationConfig, pipeline
 
 from ingest import LocalEmbeddingFunction
-from transformers import pipeline
 
-# --- Load Hugging Face text-generation pipeline ---
-def load_llm(model_name="models/gpt-oss-20b"):
+
+def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
+    """Load Hugging Face text-generation pipeline."""
     return pipeline(
         "text-generation",
         model=model_name,
@@ -13,16 +20,18 @@ def load_llm(model_name="models/gpt-oss-20b"):
         device_map="auto",
     )
 
-# --- Generate text using the pipeline ---
-def generate_response(pipe, prompt, max_new_tokens=256):
-    outputs = pipe(
-        prompt,
+def generate_response(pipe: pipeline, prompt: PromptTemplate,
+                      max_new_tokens: int = 256) -> str:
+    """Generate text using the pipeline."""
+    gen_config = GenerationConfig(
         max_new_tokens=max_new_tokens,
-        do_sample=False,  # deterministic for consistent answers
+        do_sample=False,  # deterministic
     )
+    outputs = pipe(prompt, generation_config=gen_config)
     return outputs[0]["generated_text"]
 
-def main():
+def main() -> None:
+    """Talk with LLM that cites documents."""
     # Load vector store
     embeddings = LocalEmbeddingFunction()
     db = FAISS.load_local("data", embeddings, allow_dangerous_deserialization=True)
@@ -46,7 +55,10 @@ Answer (one sentence, include citation):
         input_variables=["context", "question"],
     )
 
-    pipe = load_llm()
+    # ✅ Use chat gpt 4 directly (local path OR HF ID)
+    model_path = "models/gpt-oss-20b"  # <-- set this to local folder if offline
+    model_path = "openai/gpt-oss-20b"
+    pipe = load_llm(model_path)
 
     while True:
         query = input("\nAsk a question (or type 'exit'): ")
@@ -54,11 +66,12 @@ Answer (one sentence, include citation):
             break
 
         # Retrieve top-k relevant documents
-        context_docs = retriever.get_relevant_documents(query)
+        context_docs = retriever.invoke(query)
 
         # Label each context snippet with its source
         context_text = "\n".join(
-            [f"[{doc.metadata.get('source', 'Context')}] {doc.page_content}" for doc in context_docs]
+            [f"[{doc.metadata.get('source', 'Context')}] {doc.page_content}" \
+             for doc in context_docs],
         )
 
         # Fill prompt
@@ -72,9 +85,7 @@ Answer (one sentence, include citation):
             thought, answer = answer.split("assistantfinal")
 
         # Display results
-        sources = [doc.metadata.get("source", "Context") for doc in context_docs]
-        print("\nAnswer:", answer)
-        print("Sources:", sources)
+        [doc.metadata.get("source", "Context") for doc in context_docs]
 
 if __name__ == "__main__":
     main()
