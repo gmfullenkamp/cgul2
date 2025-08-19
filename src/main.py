@@ -75,7 +75,7 @@ Answer (one sentence, include citation):
             context_docs = retriever.invoke(query)
             pbar.update(1)
         elapsed_time = time.time() - start_time
-        print(f"[Reference Time: {elapsed_time:.2f} seconds]")
+        print(f"[Reference Time: {elapsed_time:.2f} seconds]")  # noqa: T201
 
         # Label each context snippet with its source
         context_text = "\n".join(
@@ -93,7 +93,7 @@ Answer (one sentence, include citation):
             answer = generate_response(pipe, prompt_text, max_new_tokens=512)
             pbar.update(1)
         elapsed_time = time.time() - start_time
-        print(f"[Thought Time: {elapsed_time:.2f} seconds]")
+        print(f"[Thought Time: {elapsed_time:.2f} seconds]")  # noqa: T201
 
         # Remove thought
         if "assistantfinal" in answer:
@@ -102,8 +102,8 @@ Answer (one sentence, include citation):
         # Display results
         sources = [doc.metadata.get("source", "Context") for doc in context_docs]
 
-        print("\nAnswer:", answer)
-        print("Sources:", sources)
+        print("\nAnswer:", answer)  # noqa: T201
+        print("Sources:", sources)  # noqa: T201
 
 if __name__ == "__main__":
     main()

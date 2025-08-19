@@ -1,6 +1,5 @@
 .venv/
 venv/
-data/
 models/
-docs/
+vector_store/
 __pycache__/
