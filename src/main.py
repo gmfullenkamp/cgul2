@@ -4,8 +4,11 @@ This script runs ChatGPT4 locally and uses a vector store
 of given documents to create citations when answering questions.
 """
 
+import time
+
 from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
+from tqdm import tqdm
 from transformers import GenerationConfig, pipeline
 
 from ingest import LocalEmbeddingFunction
@@ -65,8 +68,14 @@ Answer (one sentence, include citation):
         if query.lower() == "exit":
             break
 
-        # Retrieve top-k relevant documents
-        context_docs = retriever.invoke(query)
+        # Measure reference time
+        start_time = time.time()
+        with tqdm(total=1, desc="Referencing...", bar_format="{desc} {bar}") as pbar:
+            # Retrieve top-k relevant documents
+            context_docs = retriever.invoke(query)
+            pbar.update(1)
+        elapsed_time = time.time() - start_time
+        print(f"[Reference Time: {elapsed_time:.2f} seconds]")
 
         # Label each context snippet with its source
         context_text = "\n".join(
@@ -77,15 +86,24 @@ Answer (one sentence, include citation):
         # Fill prompt
         prompt_text = prompt_template.format(question=query, context=context_text)
 
-        # Generate answer
-        answer = generate_response(pipe, prompt_text, max_new_tokens=512)
+        # Measure thought time
+        start_time = time.time()
+        with tqdm(total=1, desc="Thinking...", bar_format="{desc} {bar}") as pbar:
+            # Generate answer
+            answer = generate_response(pipe, prompt_text, max_new_tokens=512)
+            pbar.update(1)
+        elapsed_time = time.time() - start_time
+        print(f"[Thought Time: {elapsed_time:.2f} seconds]")
 
         # Remove thought
         if "assistantfinal" in answer:
             thought, answer = answer.split("assistantfinal")
 
         # Display results
-        [doc.metadata.get("source", "Context") for doc in context_docs]
+        sources = [doc.metadata.get("source", "Context") for doc in context_docs]
+
+        print("\nAnswer:", answer)
+        print("Sources:", sources)
 
 if __name__ == "__main__":
     main()

@@ -87,7 +87,6 @@ Type exit to quit.
 ## TODOs
 1. Implement user conversation logging. This will help with looking at previous queries and answers.
 2. Colored logging to help pretty-print in terminal use.
-3. Tqdm for think time? If not, at least print resulting thought time.
-4. Clean repo with ruff.
-5. Add line specifiers or page specifiers for each doc for more precise citations.
-6. Make it so that the models get downloaded to the local models folder instead of the computer cache, so models populate automatically when online.
+3. Add line specifiers or page specifiers for each doc for more precise citations.
+4. Make it so that the models get downloaded to the local models folder instead of the computer cache, so models populate automatically when online.
+5. Add cli arguments for both main and ingest for all the constants.
