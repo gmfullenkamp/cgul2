@@ -90,3 +90,4 @@ Type exit to quit.
 3. Add line specifiers or page specifiers for each doc for more precise citations.
 4. Make it so that the models get downloaded to the local models folder instead of the computer cache, so models populate automatically when online.
 5. Add cli arguments for both main and ingest for all the constants.
+6. Test a python file input and ask the LLM to document a function.
