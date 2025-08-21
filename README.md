@@ -92,4 +92,5 @@ Type exit to quit.
 5. Add cli arguments for main to give it k nearest documents and other LLM constants.
 6. Test a python file input and ask the LLM to document a function.
 7. Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
-8. More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)
+8. Quantization using bits and bytes?
+9. More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)
