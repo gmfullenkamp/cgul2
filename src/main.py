@@ -48,17 +48,29 @@ def main() -> None:
     # Prompt template for concise, citation-aware answers
     prompt_template = PromptTemplate(
         template="""
-Use the context below to answer the question in exactly one sentence.
+<|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
+Knowledge cutoff: 2024-06
+Current date: 2025-08-21
+
+Reasoning: high
+
+# Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|>
+
+<|start|>developer<|message|># Instructions
+
+Use the context below to answer the question as concisely as possible.
 Include a citation in parentheses indicating the source of the information.
 
-Context:
+# Tools (none required for this task)
+
+<|end|><|start|>user<|message|>Context:
 {context}
 
 Question:
 {question}
 
-Answer (one sentence, include citation):
-""",
+Answer (concisely, include citation):<|end|>
+""",  # using harmony format as that is what openai used for prompt training
         input_variables=["context", "question"],
     )
 
@@ -91,12 +103,14 @@ Answer (one sentence, include citation):
         start_time = time.time()
         with tqdm(total=1, desc="Thinking...", bar_format="{desc} {bar}") as pbar:
             # Generate answer
-            answer = generate_response(pipe, prompt_text, max_new_tokens=512)
+            answer = generate_response(pipe, prompt_text, max_new_tokens=4092)
             pbar.update(1)
         elapsed_time = time.time() - start_time
         print(f"[Thought Time: {elapsed_time:.2f} seconds]")  # noqa: T201
 
-        # Remove thought
+        # Remove prompt and thought
+        if "assistantanalysis" in answer:
+            prompt, answer = answer.split("assistantanalysis")
         if "assistantfinal" in answer:
             thought, answer = answer.split("assistantfinal")
 
