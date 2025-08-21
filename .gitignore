@@ -1,5 +1,8 @@
+# Python environment
 .venv/
 venv/
+__pycache__/
+# Docs and models
+docs/
 models/
 vector_store/
-__pycache__/

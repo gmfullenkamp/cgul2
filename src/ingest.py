@@ -4,7 +4,7 @@ This script runs a basic sentence transformer on a directory of given
 documents and creates a vector store that can be queried by an LLM.
 """
 
-import pathlib
+from pathlib import Path
 
 from langchain.embeddings.base import Embeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -16,6 +16,9 @@ from langchain_community.document_loaders import (
 from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
 
+from constants import vector_store_dir
+from utils import download_model
+
 
 class LocalEmbeddingFunction(Embeddings):
     """Wrapper so we can use SentenceTransformer like LangChain's embedding API."""
@@ -23,7 +26,8 @@ class LocalEmbeddingFunction(Embeddings):
     def __init__(self, model_path: str =
                  "sentence-transformers/all-MiniLM-L6-v2") -> None:
         """Initialize the local embedding function for the vector store."""
-        self.model = SentenceTransformer(model_path)
+        model_path = download_model(model_path)
+        self.model = SentenceTransformer(str(model_path))
 
     def embed_documents(self, texts: list) -> list:
         """Embed a list of documents into a list of vectors."""
@@ -40,15 +44,12 @@ class LocalEmbeddingFunction(Embeddings):
 def load_documents(doc_dir: str = "docs") -> list:
     """Load the documents into langchain readable formats."""
     docs = []
-    for file in pathlib.Path.iterdir(doc_dir):
-        path = pathlib.Path(doc_dir) / file
-        if file == "__init__.py":
-            continue
-        if file.endswith(".pdf"):
+    for path in Path(doc_dir).iterdir():
+        if path.suffix.lower() == ".pdf":
             docs.extend(PyPDFLoader(path).load())
-        elif file.endswith((".txt", ".md", ".py")):
+        elif path.suffix.lower() in [".txt", ".md", ".py"]:
             docs.extend(TextLoader(path).load())
-        elif file.endswith(".docx"):
+        elif path.suffix.lower() == ".docx":
             docs.extend(UnstructuredWordDocumentLoader(path).load())
         else:
             msg = f"File {path} has unsupported extension {path.split('.')[-1]}"
@@ -65,16 +66,13 @@ def load_documents(doc_dir: str = "docs") -> list:
     return docs
 
 def build_vectorstore(doc_dir: str = "docs",
-                      persist_dir: str = "data") -> None:
+                      persist_dir: str = vector_store_dir) -> None:
     """Build the vector store from the given docs folder."""
     docs = load_documents(doc_dir)
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     chunks = splitter.split_documents(docs)
 
-    # ✅ Use SentenceTransformer directly (local path OR HF ID)
-    model_path = "models/embeddings/all-MiniLM-L6-v2"
-    model_path = "sentence-transformers/all-MiniLM-L6-v2"
-    embedder = LocalEmbeddingFunction(model_path)
+    embedder = LocalEmbeddingFunction()
 
     vectordb = FAISS.from_documents(chunks, embedding=embedder)
     vectordb.save_local(persist_dir)

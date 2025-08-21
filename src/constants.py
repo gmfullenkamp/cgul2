@@ -9,9 +9,6 @@ repo_root = Path(__file__).resolve().parents[0]  # go up one levels
 models_dir = repo_root / "models"
 if not Path.exists(models_dir):
     Path.mkdir(models_dir, parents=True)
-embeddings_dir = models_dir / "embeddings"
-if not Path.exists(embeddings_dir):
-    Path.mkdir(embeddings_dir, parents=True)
 
 # Holds the vector store directory absolute path
 vector_store_dir = repo_root / "vector_store"

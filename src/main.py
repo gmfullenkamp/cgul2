@@ -11,14 +11,17 @@ from langchain_community.vectorstores import FAISS
 from tqdm import tqdm
 from transformers import GenerationConfig, pipeline
 
+from constants import vector_store_dir
 from ingest import LocalEmbeddingFunction
+from utils import download_model
 
 
 def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
     """Load Hugging Face text-generation pipeline."""
+    model_name = download_model(model_name)
     return pipeline(
         "text-generation",
-        model=model_name,
+        model=str(model_name),
         torch_dtype="auto",
         device_map="auto",
     )
@@ -37,7 +40,8 @@ def main() -> None:
     """Talk with LLM that cites documents."""
     # Load vector store
     embeddings = LocalEmbeddingFunction()
-    db = FAISS.load_local("data", embeddings, allow_dangerous_deserialization=True)
+    db = FAISS.load_local(vector_store_dir, embeddings,
+                          allow_dangerous_deserialization=True)
 
     retriever = db.as_retriever(search_kwargs={"k": 1})
 
@@ -58,10 +62,7 @@ Answer (one sentence, include citation):
         input_variables=["context", "question"],
     )
 
-    # ✅ Use chat gpt 4 directly (local path OR HF ID)
-    model_path = "models/gpt-oss-20b"  # <-- set this to local folder if offline
-    model_path = "openai/gpt-oss-20b"
-    pipe = load_llm(model_path)
+    pipe = load_llm()
 
     while True:
         query = input("\nAsk a question (or type 'exit'): ")
