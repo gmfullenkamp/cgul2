@@ -2,6 +2,8 @@
 .venv/
 venv/
 __pycache__/
+*.egg-info/
+whls/
 # Docs and models
 docs/
 models/

@@ -18,10 +18,16 @@ cgul2/
 │── src/
 │   ├── models/              # local LLMs and word to vec embeddings
 │   ├── vector_store/        # processed vector store
+│   ├── core/
+│   │   ├── auto_doc.py      # CLI entry point for auto doc string python repo
+│   │   ├── main.py          # CLI entry point for chatting with doc citation
+│   │   └── ingest.py        # CLI entry point for loading & chunking documents
+│   ├── gui/                 # will contain gui
 │   ├── constants.py         # folder location constants
-│   ├── main.py              # CLI entry point
-│   ├── ingest.py            # loads & chunks documents
 │   └── utils.py             # extra utilities
+│── tests/
+│   ├── test_core.py
+│   └── test_gui.py
 │── .gitignore
 │── pyproject.toml
 │── requirements.txt
@@ -71,7 +77,15 @@ Type exit to quit.
 ## Configuration
 
 - Document directory: docs/ by default.
-- More CLI configuration to come.
+- TODO: Document CLI configurations for all files.
+
+## Repo Cleaning and Testing
+
+Run the following commands and fix any issues they show:
+```bash
+ruff check .
+python -m unittest discover -s tests
+```
 
 ## Notes
 
