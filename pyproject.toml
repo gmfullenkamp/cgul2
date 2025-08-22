@@ -1,6 +1,6 @@
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["D203", "D213"]
+ignore = ["D203", "D213", "PLR0913"]
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

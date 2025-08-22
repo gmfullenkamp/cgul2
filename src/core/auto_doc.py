@@ -1,18 +1,21 @@
-"""
-Auto-generate docstrings for Python functions, methods, and classes
-in a given repository using an LLM.
+"""Auto-generate docstrings for Python in a given repository using an LLM.
+
+This script holds all the functions and ability to run an LLM on
+a repo of python files and auto documents all methods, functions,
+classes, and etc. so that you don't have too!
 """
 
 import ast
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 
-from transformers import pipeline, GenerationConfig
 from tqdm import tqdm
+from transformers import GenerationConfig, pipeline
 
 from utils import download_model
 
-def load_llm(model_name: str = "openai/gpt-oss-20b"):
+
+def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
     """Load Hugging Face text-generation pipeline for docstring generation."""
     model_name = download_model(model_name)
     return pipeline(
@@ -23,13 +26,15 @@ def load_llm(model_name: str = "openai/gpt-oss-20b"):
     )
 
 
-def generate_docstring(pipe, signature: str, code: str, max_new_tokens: int,
+def generate_docstring(pipe: pipeline, signature: str, code: str, max_new_tokens: int,
                        knowledge_cutoff: str, reasoning_level: str) -> str:
     """Generate a docstring for a function/method/class."""
     if reasoning_level not in ["high", "medium", "low"]:
-        raise ValueError(f"Reasing level must be high, medium, or low. Not '{reasoning_level}'.")
+        exception_str = f"""Reasing level must be high, medium, or low.
+        Not '{reasoning_level}'."""
+        raise ValueError(exception_str)
 
-    current_date = date.today().strftime("%Y-%m-%d")
+    current_date = datetime.now(tz=timezone).strftime("%Y-%m-%d")
     prompt = f"""
 <|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
 Knowledge cutoff: {knowledge_cutoff}
@@ -37,7 +42,8 @@ Current date: {current_date}
 
 Reasoning: {reasoning_level}
 
-# Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|>
+# Valid channels: analysis, commentary, final.
+# Channel must be included for every message.<|end|>
 
 <|start|>developer<|message|># Instructions
 
@@ -61,9 +67,9 @@ Docstring:<|end|>
     return output[0]["generated_text"].strip()
 
 
-def extract_functions_classes(file_path: Path):
+def extract_functions_classes(file_path: Path) -> tuple:
     """Return list of tuples (node, node_type, start_lineno, end_lineno)."""
-    with open(file_path, "r", encoding="utf-8") as f:
+    with Path.open(file_path, encoding="utf-8") as f:
         source = f.read()
 
     tree = ast.parse(source)
@@ -78,8 +84,8 @@ def extract_functions_classes(file_path: Path):
     return results, source
 
 
-def update_file_with_docstrings(file_path: Path, pipe, max_new_tokens: int,
-                                knowledge_cutoff: str, reasoning_level: str):
+def update_file_with_docstrings(file_path: Path, pipe: pipeline, max_new_tokens: int,
+                                knowledge_cutoff: str, reasoning_level: str) -> None:
     """Update a single Python file with generated docstrings."""
     results, source = extract_functions_classes(file_path)
     lines = source.split("\n")
@@ -96,30 +102,36 @@ def update_file_with_docstrings(file_path: Path, pipe, max_new_tokens: int,
 
         # Build signature string
         if node_type == "function":
-            signature = f"def {node.name}({', '.join([arg.arg for arg in node.args.args])})"
+            to_join = [arg.arg for arg in node.args.args]
+            signature = f"def {node.name}({', '.join(to_join)})"
         elif node_type == "class":
             signature = f"class {node.name}"
         else:
             signature = node.name
 
         # Generate docstring
-        generated_doc = generate_docstring(pipe, signature, code_snippet, max_new_tokens,
-                                           knowledge_cutoff, reasoning_level)
-        generated_doc = generated_doc.strip('"""').strip()
+        generated_doc = generate_docstring(
+            pipe, signature, code_snippet, max_new_tokens,
+            knowledge_cutoff, reasoning_level,
+        )
+        for quote in ('"""', "'''"):
+            if generated_doc.startswith(quote) and generated_doc.endswith(quote):
+                generated_doc = generated_doc[len(quote):-len(quote)].strip()
+                break
 
         # Insert docstring
-        indent = " " * (node.col_offset + 4 if node_type == "function" else node.col_offset + 4)
+        indent = " " * (node.col_offset + 4)
         doc_lines = [f'{indent}"""' + generated_doc + '"""']
         lines.insert(start + offset, "\n".join(doc_lines))
         offset += len(doc_lines)
 
     # Write back updated file
-    with open(file_path, "w", encoding="utf-8") as f:
+    with Path.open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
 def process_repository(repo_path: str, model_name: str, max_new_tokens: int,
-                       knowledge_cutoff: str, reasoning_level: str):
+                       knowledge_cutoff: str, reasoning_level: str) -> None:
     """Process all Python files in a repository and add docstrings."""
     pipe = load_llm(model_name)
     py_files = list(Path(repo_path).rglob("*.py"))
@@ -132,16 +144,23 @@ def process_repository(repo_path: str, model_name: str, max_new_tokens: int,
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Auto-document Python repo using an LLM.")
-    parser.add_argument("repo_path", type=str, help="Path to the Python repository.")
-    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b", help="LLM model to use.")
+    parser = argparse.ArgumentParser(
+        description="Auto-document Python repo using an LLM.",
+    )
+    parser.add_argument("repo_path", type=str,
+                        help="Path to the Python repository.")
+    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b",
+                        help="LLM model to use.")
     parser.add_argument("--reasoning_level", type=str, default="high",
-                        help="Level of reasoning to use when responding. Must be high, medium, or low.")
+                        help="""Level of reasoning to use when responding.
+                        Must be high, medium, or low.""")
     parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
                         help="How far back in time the model can think.")
     parser.add_argument("--max_new_tokens", type=int, default=512,
-                        help="Amount of characters the model can make when generating a response. " \
-                            "This includes context and analysis of the problem.")
+                        help="""Amount of characters the model can make when
+                        generating a response. This includes context and analysis
+                        of the problem.""")
 
     args = parser.parse_args()
-    process_repository(args.repo_path, args.model, args.max_new_tokens, args.knowledge_cutoff, args.reasoning_level)
+    process_repository(args.repo_path, args.model, args.max_new_tokens,
+                       args.knowledge_cutoff, args.reasoning_level)

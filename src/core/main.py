@@ -4,8 +4,8 @@ This script runs ChatGPT4 locally and uses a vector store
 of given documents to create citations when answering questions.
 """
 
-from datetime import date
 import time
+from datetime import datetime, timezone
 
 from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
@@ -13,7 +13,7 @@ from transformers import GenerationConfig, pipeline
 
 from constants import vector_store_dir
 from core.ingest import LocalEmbeddingFunction
-from utils import download_model, clogger
+from utils import clogger, download_model
 
 
 def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
@@ -40,9 +40,11 @@ def chat(embedding_model: str, model: str, reasoning_level: str, knowledge_cutof
          vector_store: str, k_nearest: int, max_new_tokens: int) -> None:
     """Talk with LLM that cites documents."""
     if reasoning_level not in ["high", "medium", "low"]:
-        raise ValueError(f"Reasing level must be high, medium, or low. Not '{reasoning_level}'.")
+        exception_str = f"""Reasing level must be high, medium, or low.
+        Not '{reasoning_level}'."""
+        raise ValueError(exception_str)
 
-    current_date = date.today().strftime("%Y-%m-%d")
+    current_date = datetime.now(tz=timezone).strftime("%Y-%m-%d")
 
     # Load vector store
     embeddings = LocalEmbeddingFunction(embedding_model)
@@ -58,7 +60,8 @@ Current date: {current_date}
 
 Reasoning: {reasoning_level}
 
-# Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|>
+# Valid channels: analysis, commentary, final.
+# Channel must be included for every message.<|end|>
 
 <|start|>developer<|message|># Instructions
 
@@ -78,8 +81,9 @@ Answer (concisely, include citation):<|end|>
 
     # Prompt template for concise, citation-aware answers
     prompt_template = PromptTemplate(
-        template=template,  # using harmony format as that is what openai used for prompt training
-        input_variables=["knowledge_cutoff", "current_date", "reasoning_level", "context", "question"],
+        template=template,  # using openai harmony format
+        input_variables=["knowledge_cutoff", "current_date", "reasoning_level",
+                         "context", "question"],
     )
 
     pipe = load_llm(model)
@@ -94,7 +98,7 @@ Answer (concisely, include citation):<|end|>
         # Retrieve top-k relevant documents
         context_docs = retriever.invoke(query)
         elapsed_time = time.time() - start_time
-        clogger.info(f"[Reference Time: {elapsed_time:.2f} seconds]")  # noqa: T201
+        clogger.info(f"[Reference Time: {elapsed_time:.2f} seconds]")
 
         # Label each context snippet with its source
         context_text = "\n".join(
@@ -103,16 +107,17 @@ Answer (concisely, include citation):<|end|>
         )
 
         # Fill prompt
-        prompt_text = prompt_template.format(question=query, context=context_text,
-                                             reasoning_level=reasoning_level, knowledge_cutoff=knowledge_cutoff,
-                                             current_date=current_date)
+        prompt_text = prompt_template.format(
+            question=query, context=context_text, reasoning_level=reasoning_level,
+            knowledge_cutoff=knowledge_cutoff, current_date=current_date,
+        )
 
         # Measure thought time
         start_time = time.time()
         # Generate answer
         answer = generate_response(pipe, prompt_text, max_new_tokens=max_new_tokens)
         elapsed_time = time.time() - start_time
-        clogger.info(f"[Thought Time: {elapsed_time:.2f} seconds]")  # noqa: T201
+        clogger.info(f"[Thought Time: {elapsed_time:.2f} seconds]")
 
         # Remove prompt and thought
         if "assistantanalysis" in answer:
@@ -123,28 +128,36 @@ Answer (concisely, include citation):<|end|>
         # Display results
         sources = [doc.metadata.get("source", "Context") for doc in context_docs]
 
-        clogger.info("\nAnswer: " + answer)  # noqa: T201
-        clogger.info(f"Sources: {sources}")  # noqa: T201
+        clogger.info("\nAnswer: " + answer)
+        clogger.info(f"Sources: {sources}")
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Chat using an LLM with citation ability.")
-    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b", help="LLM model to use.")
-    parser.add_argument("--embedding_model", type=str, default="sentence-transformers/all-MiniLM-L6-v2",
+    parser = argparse.ArgumentParser(
+        description="Chat using an LLM with citation ability.",
+    )
+    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b",
+                        help="LLM model to use.")
+    parser.add_argument("--embedding_model", type=str,
+                        default="sentence-transformers/all-MiniLM-L6-v2",
                         help="Embedding model to use.")
     parser.add_argument("--reasoning_level", type=str, default="low",
-                        help="Level of reasoning to use when responding. Must be high, medium, or low. " \
-                            "The level of reasoning is directly tied to the amount of tokens needed to get " \
-                            "to a final answer.")
+                        help="""Level of reasoning to use when responding.
+                        Must be high, medium, or low. The level of reasoning
+                        is directly tied to the amount of tokens needed to
+                        get to a final answer.""")
     parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
                         help="How far back in time the model can think.")
-    parser.add_argument("--k_nearest", type=int, default=1, help="Number of documents to reference.")
+    parser.add_argument("--k_nearest", type=int, default=1,
+                        help="Number of documents to reference.")
     parser.add_argument("--max_new_tokens", type=int, default=512,
-                        help="Amount of characters the model can make when generating a response. " \
-                            "This includes context and analysis of the problem. This is directly tied " \
-                            "to the amount of time the model takes to generate a response.")
+                        help="""Amount of characters the model can make
+                        when generating a response. This includes context
+                        and analysis of the problem. This is directly tied
+                        to the amount of time the model takes to generate
+                        a response.""")
 
     args = parser.parse_args()
-    chat(args.embedding_model, args.model, args.reasoning_level, args.knowledge_cutoff, vector_store_dir,
-         args.k_nearest, args.max_new_tokens)
+    chat(args.embedding_model, args.model, args.reasoning_level, args.knowledge_cutoff,
+         vector_store_dir, args.k_nearest, args.max_new_tokens)

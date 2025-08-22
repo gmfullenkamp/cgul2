@@ -83,8 +83,8 @@ Type exit to quit.
 
 Run the following commands and fix any issues they show:
 ```bash
-ruff check .
-python -m unittest discover -s tests
+ruff check .\src\ --fix
+python .\tests\test_smoke.py
 ```
 
 ## Notes

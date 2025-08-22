@@ -5,9 +5,12 @@ maintaining, and assisting LLMs, embedding models, and other
 utilities.
 """
 
+from __future__ import annotations
+
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
+from typing import ClassVar
 
 from huggingface_hub import snapshot_download
 
@@ -27,21 +30,25 @@ def download_model(model_id: str) -> Path:
     return Path(local_dir)
 
 class ColoredFormatter(logging.Formatter):
-    # ANSI escape sequences for colors
-    COLORS = {
-        'DEBUG': "\033[94m",    # light blue
-        'INFO': "\033[92m",     # green
-        'WARNING': "\033[93m",  # yellow
-        'ERROR': "\033[91m",    # orange/red
-        'CRITICAL': "\033[31m", # bright red
-    }
-    RESET = "\033[0m"
+    """Colored formatter for more excitting logs."""
 
-    def __init__(self, fmt=None, use_colors=True):
+    # ANSI escape sequences for colors
+    COLORS: ClassVar[dict[str, str]] = {
+        "DEBUG": "\033[94m",    # light blue
+        "INFO": "\033[92m",     # green
+        "WARNING": "\033[93m",  # yellow
+        "ERROR": "\033[91m",    # orange/red
+        "CRITICAL": "\033[31m", # bright red
+    }
+    RESET: ClassVar[str] = "\033[0m"
+
+    def __init__(self, fmt: str | None, *, use_colors: bool = True) -> None:
+        """Initialize the color formatter class."""
         super().__init__(fmt)
         self.use_colors = use_colors
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
+        """Format for the log."""
         message = super().format(record)
         if self.use_colors:
             color = self.COLORS.get(record.levelname, self.RESET)
@@ -50,14 +57,18 @@ class ColoredFormatter(logging.Formatter):
 
 
 class ColoredLogger(logging.Logger):
-    def __init__(self, name: str, level=logging.DEBUG):
+    """Colored logger class to make logging more exciting."""
+
+    def __init__(self, name: str, level: logging._Level = logging.DEBUG) -> None:
+        """Initialize colored logger."""
         super().__init__(name, level)
 
         console_handler = logging.StreamHandler(sys.stdout)
 
         # Enable colors only if stdout is a terminal
         use_colors = sys.stdout.isatty()
-        formatter = ColoredFormatter("%(levelname)s: %(message)s", use_colors=use_colors)
+        formatter = ColoredFormatter("%(levelname)s: %(message)s",
+                                     use_colors=use_colors)
         console_handler.setFormatter(formatter)
 
         self.addHandler(console_handler)

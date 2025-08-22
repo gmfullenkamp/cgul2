@@ -17,7 +17,7 @@ from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
 
 from constants import vector_store_dir
-from utils import download_model, clogger
+from utils import clogger, download_model
 
 
 class LocalEmbeddingFunction(Embeddings):
@@ -69,25 +69,35 @@ def build_vectorstore(doc_dir: str, persist_dir: str, model_path: str, chunk_siz
                       chunk_overlap: int) -> None:
     """Build the vector store from the given docs folder."""
     docs = load_documents(doc_dir)
-    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size,
+                                              chunk_overlap=chunk_overlap)
     chunks = splitter.split_documents(docs)
 
     embedder = LocalEmbeddingFunction(model_path=model_path)
 
     vectordb = FAISS.from_documents(chunks, embedding=embedder)
     vectordb.save_local(persist_dir)
-    clogger.info(f"Finished building vector store for {len(docs)} docs and {len(chunks)} chunks.")
+    clogger.info(f"""Finished building vector store for {len(docs)} docs
+                 and {len(chunks)} chunks.""")
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Create a vector store for document citing using an embedding model.")
-    parser.add_argument("--doc_dir", type=str, default="docs", help="Path to the Python repository.")
-    parser.add_argument("--model", type=str, default="sentence-transformers/all-MiniLM-L6-v2",
+    parser = argparse.ArgumentParser(
+        description="""Create a vector store for document citing
+        using an embedding model.""",
+    )
+    parser.add_argument("--doc_dir", type=str, default="docs",
+                        help="Path to the Python repository.")
+    parser.add_argument("--model", type=str,
+                        default="sentence-transformers/all-MiniLM-L6-v2",
                         help="Embedding model to use.")
-    parser.add_argument("--chunk_size", type=int, default=1000, help="Size of vector store chunks for referencing.")
-    parser.add_argument("--chunk_overlap", type=int, default=100, help="Overlap between vector store chunks.")
+    parser.add_argument("--chunk_size", type=int, default=1000,
+                        help="Size of vector store chunks for referencing.")
+    parser.add_argument("--chunk_overlap", type=int, default=100,
+                        help="Overlap between vector store chunks.")
 
     args = parser.parse_args()
-    build_vectorstore(args.doc_dir, vector_store_dir, args.model, args.chunk_size, args.chunk_overlap)
+    build_vectorstore(args.doc_dir, vector_store_dir, args.model, args.chunk_size,
+                      args.chunk_overlap)
