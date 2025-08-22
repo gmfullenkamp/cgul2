@@ -120,6 +120,11 @@ def update_file_with_docstrings(file_path: Path, pipe: pipeline, max_new_tokens:
             pipe, signature, code_snippet, max_new_tokens,
             knowledge_cutoff, reasoning_level,
         )
+        # Remove double quotes as sometimes it does this twice
+        for quote in ('"""', "'''"):
+            if generated_doc.startswith(quote) and generated_doc.endswith(quote):
+                generated_doc = generated_doc[len(quote):-len(quote)].strip()
+                break
         for quote in ('"""', "'''"):
             if generated_doc.startswith(quote) and generated_doc.endswith(quote):
                 generated_doc = generated_doc[len(quote):-len(quote)].strip()
