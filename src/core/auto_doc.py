@@ -12,7 +12,7 @@ from pathlib import Path
 from tqdm import tqdm
 from transformers import GenerationConfig, pipeline
 
-from utils import download_model
+from utils import download_model, clogger
 
 
 def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
@@ -64,7 +64,12 @@ Docstring:<|end|>
 """
     gen_config = GenerationConfig(max_new_tokens=max_new_tokens, do_sample=False)
     output = pipe(prompt, generation_config=gen_config)
-    return output[0]["generated_text"].strip()
+    output = output[0]["generated_text"].strip()
+    if "assistantfinal" in output:
+        answer = output.split("assistantfinal")[-1]
+    elif "final" in output:
+        answer = output.split("final")[-1]
+    return answer
 
 
 def extract_functions_classes(file_path: Path) -> tuple:
@@ -91,7 +96,8 @@ def update_file_with_docstrings(file_path: Path, pipe: pipeline, max_new_tokens:
     lines = source.split("\n")
     offset = 0  # Line offset due to inserted docstrings
 
-    for node, node_type, start, end in results:
+    for node, node_type, start, end in tqdm(results, desc="Documenting functions",
+                                            colour="green"):
         docstring = ast.get_docstring(node)
         if docstring:
             continue  # Skip if docstring already exists
@@ -136,9 +142,11 @@ def process_repository(repo_path: str, model_name: str, max_new_tokens: int,
     pipe = load_llm(model_name)
     py_files = list(Path(repo_path).rglob("*.py"))
 
-    for file_path in tqdm(py_files, desc="Processing Python files"):
+    for file_path in py_files:
+        clogger.info(f"Documenting {Path(file_path).name}")
         update_file_with_docstrings(file_path, pipe, max_new_tokens, knowledge_cutoff,
                                     reasoning_level)
+        clogger.info(f"Updated doc strings of {Path(file_path).name}")
 
 
 if __name__ == "__main__":
@@ -156,7 +164,7 @@ if __name__ == "__main__":
                         Must be high, medium, or low.""")
     parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
                         help="How far back in time the model can think.")
-    parser.add_argument("--max_new_tokens", type=int, default=512,
+    parser.add_argument("--max_new_tokens", type=int, default=4096,
                         help="""Amount of characters the model can make when
                         generating a response. This includes context and analysis
                         of the problem.""")
