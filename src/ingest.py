@@ -17,7 +17,7 @@ from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
 
 from constants import vector_store_dir
-from utils import download_model
+from utils import download_model, clogger
 
 
 class LocalEmbeddingFunction(Embeddings):
@@ -76,6 +76,7 @@ def build_vectorstore(doc_dir: str, persist_dir: str, model_path: str, chunk_siz
 
     vectordb = FAISS.from_documents(chunks, embedding=embedder)
     vectordb.save_local(persist_dir)
+    clogger.info(f"Finished building vector store for {len(docs)} docs and {len(chunks)} chunks.")
 
 
 if __name__ == "__main__":

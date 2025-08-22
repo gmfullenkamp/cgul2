@@ -14,7 +14,7 @@ from transformers import GenerationConfig, pipeline
 
 from constants import vector_store_dir
 from ingest import LocalEmbeddingFunction
-from utils import download_model
+from utils import download_model, clogger
 
 
 def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
@@ -92,12 +92,10 @@ Answer (concisely, include citation):<|end|>
 
         # Measure reference time
         start_time = time.time()
-        with tqdm(total=1, desc="Referencing...", bar_format="{desc} {bar}") as pbar:
-            # Retrieve top-k relevant documents
-            context_docs = retriever.invoke(query)
-            pbar.update(1)
+        # Retrieve top-k relevant documents
+        context_docs = retriever.invoke(query)
         elapsed_time = time.time() - start_time
-        print(f"[Reference Time: {elapsed_time:.2f} seconds]")  # noqa: T201
+        clogger.info(f"[Reference Time: {elapsed_time:.2f} seconds]")  # noqa: T201
 
         # Label each context snippet with its source
         context_text = "\n".join(
@@ -112,12 +110,10 @@ Answer (concisely, include citation):<|end|>
 
         # Measure thought time
         start_time = time.time()
-        with tqdm(total=1, desc="Thinking...", bar_format="{desc} {bar}") as pbar:
-            # Generate answer
-            answer = generate_response(pipe, prompt_text, max_new_tokens=max_new_tokens)
-            pbar.update(1)
+        # Generate answer
+        answer = generate_response(pipe, prompt_text, max_new_tokens=max_new_tokens)
         elapsed_time = time.time() - start_time
-        print(f"[Thought Time: {elapsed_time:.2f} seconds]")  # noqa: T201
+        clogger.info(f"[Thought Time: {elapsed_time:.2f} seconds]")  # noqa: T201
 
         # Remove prompt and thought
         if "assistantanalysis" in answer:
@@ -128,8 +124,8 @@ Answer (concisely, include citation):<|end|>
         # Display results
         sources = [doc.metadata.get("source", "Context") for doc in context_docs]
 
-        print("\nAnswer:", answer)  # noqa: T201
-        print("Sources:", sources)  # noqa: T201
+        clogger.info("\nAnswer: " + answer)  # noqa: T201
+        clogger.info("Sources: " + sources)  # noqa: T201
 
 if __name__ == "__main__":
     import argparse
