@@ -7,10 +7,10 @@ import ast
 from datetime import date
 from pathlib import Path
 
-from utils import download_model
 from transformers import pipeline, GenerationConfig
 from tqdm import tqdm
 
+from utils import download_model
 
 def load_llm(model_name: str = "openai/gpt-oss-20b"):
     """Load Hugging Face text-generation pipeline for docstring generation."""

@@ -9,11 +9,10 @@ import time
 
 from langchain.prompts import PromptTemplate
 from langchain_community.vectorstores import FAISS
-from tqdm import tqdm
 from transformers import GenerationConfig, pipeline
 
 from constants import vector_store_dir
-from ingest import LocalEmbeddingFunction
+from core.ingest import LocalEmbeddingFunction
 from utils import download_model, clogger
 
 

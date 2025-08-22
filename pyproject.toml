@@ -1,3 +1,21 @@
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["D203", "D213"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "CGUL2"
+version = "0.1.0"
+description = "CGUL-2 (Comprehensive Generation Using LLMs) with GUI and core modules"
+authors = [
+    {name = "Grant Fullenkamp", email = "gmfullenkamp@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -52,7 +52,7 @@ def load_documents(doc_dir: str) -> list:
         elif path.suffix.lower() == ".docx":
             docs.extend(UnstructuredWordDocumentLoader(path).load())
         else:
-            msg = f"File {path} has unsupported extension {path.split('.')[-1]}"
+            msg = f"File {path} has unsupported extension {str(path).split('.')[-1]}"
             raise ValueError(msg)
 
     if not docs:

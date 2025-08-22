@@ -33,6 +33,7 @@ cgul2/
 Using Python 3.8+:
 ```bash
 pip install -r requirements.txt
+pip install -e .
 ```
 Make sure you have your document files in the docs/ fodler and modesl in the models/ directory.
 
