@@ -27,16 +27,33 @@ def load_llm(model_name: str = "openai/gpt-oss-20b"):
 
 def generate_docstring(pipe, signature: str, code: str, max_new_tokens: int = 128) -> str:
     """Generate a docstring for a function/method/class."""
+    # TODO: Update this prompt to allow the user to change the knowledge cutoff and reasoning levels
     prompt = f"""
-Generate a concise Python docstring for the following code.
+<|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
+Knowledge cutoff: 2024-06
+Current date: 2025-08-21
 
-Signature:
+Reasoning: high
+
+# Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|>
+
+<|start|>developer<|message|># Instructions
+
+Generate a concise, well-structured Python docstring for the given function or class.
+- Summarize what the code does.
+- Clearly describe parameters and return values if applicable.
+- Keep it concise and in standard Python docstring style.
+
+# Tools (none required for this task)
+
+<|end|><|start|>user<|message|>Signature:
 {signature}
 
 Code:
 {code}
 
-Docstring:"""
+Docstring:<|end|>
+"""
     gen_config = GenerationConfig(max_new_tokens=max_new_tokens, do_sample=False)
     output = pipe(prompt, generation_config=gen_config)
     return output[0]["generated_text"].strip()

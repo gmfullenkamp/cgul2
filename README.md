@@ -88,7 +88,5 @@ Type exit to quit.
 1. Implement user conversation logging. This will help with looking at previous queries and answers.
 2. Colored logging to help pretty-print in terminal use.
 3. Add line specifiers or page specifiers for each doc for more precise citations.
-4. Add cli arguments for ingest to give it a documents path and chunk sizing (and other ingest constants).
-5. Add cli arguments for main to give it k nearest documents and other LLM constants.
-6. Test a python file input and ask the LLM to document a function.
-7. Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
+4. Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
+5. Test auto_doc.py and add better cli arguments for more configurability.

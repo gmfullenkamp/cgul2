@@ -4,6 +4,7 @@ This script runs ChatGPT4 locally and uses a vector store
 of given documents to create citations when answering questions.
 """
 
+from datetime import date
 import time
 
 from langchain.prompts import PromptTemplate
@@ -36,23 +37,27 @@ def generate_response(pipe: pipeline, prompt: PromptTemplate,
     outputs = pipe(prompt, generation_config=gen_config)
     return outputs[0]["generated_text"]
 
-def main() -> None:
+def chat(embedding_model: str, model: str, reasoning_level: str, knowledge_cutoff: str,
+         vector_store: str, k_nearest: int, max_new_tokens: int) -> None:
     """Talk with LLM that cites documents."""
+    if reasoning_level not in ["high", "medium", "low"]:
+        raise ValueError(f"Reasing level must be high, medium, or low. Not '{reasoning_level}'.")
+
+    current_date = date.today().strftime("%Y-%m-%d")
+
     # Load vector store
-    embeddings = LocalEmbeddingFunction()
-    db = FAISS.load_local(vector_store_dir, embeddings,
+    embeddings = LocalEmbeddingFunction(embedding_model)
+    db = FAISS.load_local(vector_store, embeddings,
                           allow_dangerous_deserialization=True)
 
-    retriever = db.as_retriever(search_kwargs={"k": 1})
+    retriever = db.as_retriever(search_kwargs={"k": k_nearest})
 
-    # Prompt template for concise, citation-aware answers
-    prompt_template = PromptTemplate(
-        template="""
+    template = """
 <|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
-Knowledge cutoff: 2024-06
-Current date: 2025-08-21
+Knowledge cutoff: {knowledge_cutoff}
+Current date: {current_date}
 
-Reasoning: high
+Reasoning: {reasoning_level}
 
 # Valid channels: analysis, commentary, final. Channel must be included for every message.<|end|>
 
@@ -70,11 +75,15 @@ Question:
 {question}
 
 Answer (concisely, include citation):<|end|>
-""",  # using harmony format as that is what openai used for prompt training
-        input_variables=["context", "question"],
+"""
+
+    # Prompt template for concise, citation-aware answers
+    prompt_template = PromptTemplate(
+        template=template,  # using harmony format as that is what openai used for prompt training
+        input_variables=["knowledge_cutoff", "current_date", "reasoning_level", "context", "question"],
     )
 
-    pipe = load_llm()
+    pipe = load_llm(model)
 
     while True:
         query = input("\nAsk a question (or type 'exit'): ")
@@ -97,13 +106,15 @@ Answer (concisely, include citation):<|end|>
         )
 
         # Fill prompt
-        prompt_text = prompt_template.format(question=query, context=context_text)
+        prompt_text = prompt_template.format(question=query, context=context_text,
+                                             reasoning_level=reasoning_level, knowledge_cutoff=knowledge_cutoff,
+                                             current_date=current_date)
 
         # Measure thought time
         start_time = time.time()
         with tqdm(total=1, desc="Thinking...", bar_format="{desc} {bar}") as pbar:
             # Generate answer
-            answer = generate_response(pipe, prompt_text, max_new_tokens=4092)
+            answer = generate_response(pipe, prompt_text, max_new_tokens=max_new_tokens)
             pbar.update(1)
         elapsed_time = time.time() - start_time
         print(f"[Thought Time: {elapsed_time:.2f} seconds]")  # noqa: T201
@@ -121,5 +132,22 @@ Answer (concisely, include citation):<|end|>
         print("Sources:", sources)  # noqa: T201
 
 if __name__ == "__main__":
-    main()
+    import argparse
 
+    parser = argparse.ArgumentParser(description="Auto-document Python repo using an LLM.")
+    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b",
+                        help="Local LLM model to use.")
+    parser.add_argument("--embedding_model", type=str, default="sentence-transformers/all-MiniLM-L6-v2",
+                        help="Embedding model to use.")
+    parser.add_argument("--reasoning_level", type=str, default="high",
+                        help="Level of reasoning to use when responding. Must be high, medium, or low.")
+    parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
+                        help="How far back in time the model can think.")
+    parser.add_argument("--k_nearest", type=int, default=1, help="Number of documents to reference.")
+    parser.add_argument("--max_new_tokens", type=int, default=512,
+                        help="Amount of characters the model can make when generating a response. " \
+                            "This includes context and analysis of the problem.")
+
+    args = parser.parse_args()
+    chat(args.embedding_model, args.model, args.reasoning_level, args.knowledge_cutoff, vector_store_dir,
+         args.k_nearest, args.max_new_tokens)
