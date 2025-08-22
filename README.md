@@ -89,6 +89,5 @@ Type exit to quit.
 2. Colored logging to help pretty-print in terminal use.
 3. Add line specifiers or page specifiers for each doc for more precise citations.
 4. Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
-5. Test auto_doc.py and add better cli arguments for more configurability.
-6. Quantization using bits and bytes?
-7. More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)
+5. Quantization using bits and bytes?
+6. More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)

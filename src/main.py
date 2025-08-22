@@ -134,9 +134,8 @@ Answer (concisely, include citation):<|end|>
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Auto-document Python repo using an LLM.")
-    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b",
-                        help="Local LLM model to use.")
+    parser = argparse.ArgumentParser(description="Chat using an LLM with citation ability.")
+    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b", help="LLM model to use.")
     parser.add_argument("--embedding_model", type=str, default="sentence-transformers/all-MiniLM-L6-v2",
                         help="Embedding model to use.")
     parser.add_argument("--reasoning_level", type=str, default="high",

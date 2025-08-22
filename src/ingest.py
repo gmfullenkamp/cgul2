@@ -81,7 +81,7 @@ def build_vectorstore(doc_dir: str, persist_dir: str, model_path: str, chunk_siz
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Auto-document Python repo using an LLM.")
+    parser = argparse.ArgumentParser(description="Create a vector store for document citing using an embedding model.")
     parser.add_argument("--doc_dir", type=str, default="docs", help="Path to the Python repository.")
     parser.add_argument("--model", type=str, default="sentence-transformers/all-MiniLM-L6-v2",
                         help="Embedding model to use.")
