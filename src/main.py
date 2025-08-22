@@ -125,7 +125,7 @@ Answer (concisely, include citation):<|end|>
         sources = [doc.metadata.get("source", "Context") for doc in context_docs]
 
         clogger.info("\nAnswer: " + answer)  # noqa: T201
-        clogger.info("Sources: " + sources)  # noqa: T201
+        clogger.info(f"Sources: {sources}")  # noqa: T201
 
 if __name__ == "__main__":
     import argparse
@@ -134,14 +134,17 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="openai/gpt-oss-20b", help="LLM model to use.")
     parser.add_argument("--embedding_model", type=str, default="sentence-transformers/all-MiniLM-L6-v2",
                         help="Embedding model to use.")
-    parser.add_argument("--reasoning_level", type=str, default="high",
-                        help="Level of reasoning to use when responding. Must be high, medium, or low.")
+    parser.add_argument("--reasoning_level", type=str, default="low",
+                        help="Level of reasoning to use when responding. Must be high, medium, or low. " \
+                            "The level of reasoning is directly tied to the amount of tokens needed to get " \
+                            "to a final answer.")
     parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
                         help="How far back in time the model can think.")
     parser.add_argument("--k_nearest", type=int, default=1, help="Number of documents to reference.")
     parser.add_argument("--max_new_tokens", type=int, default=512,
                         help="Amount of characters the model can make when generating a response. " \
-                            "This includes context and analysis of the problem.")
+                            "This includes context and analysis of the problem. This is directly tied " \
+                            "to the amount of time the model takes to generate a response.")
 
     args = parser.parse_args()
     chat(args.embedding_model, args.model, args.reasoning_level, args.knowledge_cutoff, vector_store_dir,

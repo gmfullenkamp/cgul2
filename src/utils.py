@@ -7,6 +7,7 @@ utilities.
 
 import logging
 from pathlib import Path
+import sys
 
 from huggingface_hub import snapshot_download
 
@@ -25,36 +26,45 @@ def download_model(model_id: str) -> Path:
     )
     return Path(local_dir)
 
-import logging
-
 class ColoredFormatter(logging.Formatter):
     # ANSI escape sequences for colors
     COLORS = {
         'DEBUG': "\033[94m",    # light blue
         'INFO': "\033[92m",     # green
         'WARNING': "\033[93m",  # yellow
-        'ERROR': "\033[91m",    # red-ish / orange
+        'ERROR': "\033[91m",    # orange/red
         'CRITICAL': "\033[31m", # bright red
     }
     RESET = "\033[0m"
 
+    def __init__(self, fmt=None, use_colors=True):
+        super().__init__(fmt)
+        self.use_colors = use_colors
+
     def format(self, record):
-        log_color = self.COLORS.get(record.levelname, self.RESET)
         message = super().format(record)
-        return f"{log_color}{message}{self.RESET}"
+        if self.use_colors:
+            color = self.COLORS.get(record.levelname, self.RESET)
+            return f"{color}{message}{self.RESET}"
+        return message
+
 
 class ColoredLogger(logging.Logger):
     def __init__(self, name: str, level=logging.DEBUG):
         super().__init__(name, level)
 
-        console_handler = logging.StreamHandler()
-        formatter = ColoredFormatter("%(levelname)s: %(message)s")
+        console_handler = logging.StreamHandler(sys.stdout)
+
+        # Enable colors only if stdout is a terminal
+        use_colors = sys.stdout.isatty()
+        formatter = ColoredFormatter("%(levelname)s: %(message)s", use_colors=use_colors)
         console_handler.setFormatter(formatter)
 
         self.addHandler(console_handler)
         self.propagate = False  # prevent duplicate logs
 
 clogger = ColoredLogger("ColoredLogger")
+
 
 # Example usage
 if __name__ == "__main__":
