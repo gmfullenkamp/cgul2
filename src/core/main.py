@@ -44,7 +44,7 @@ def chat(embedding_model: str, model: str, reasoning_level: str, knowledge_cutof
         Not '{reasoning_level}'."""
         raise ValueError(exception_str)
 
-    current_date = datetime.now(tz=timezone).strftime("%Y-%m-%d")
+    current_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
 
     # Load vector store
     embeddings = LocalEmbeddingFunction(embedding_model)

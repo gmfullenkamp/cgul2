@@ -34,7 +34,7 @@ def generate_docstring(pipe: pipeline, signature: str, code: str, max_new_tokens
         Not '{reasoning_level}'."""
         raise ValueError(exception_str)
 
-    current_date = datetime.now(tz=timezone).strftime("%Y-%m-%d")
+    current_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
     prompt = f"""
 <|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
 Knowledge cutoff: {knowledge_cutoff}
