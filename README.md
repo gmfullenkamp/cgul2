@@ -26,8 +26,7 @@ cgul2/
 │   ├── constants.py         # folder location constants
 │   └── utils.py             # extra utilities
 │── tests/
-│   ├── test_core.py
-│   └── test_gui.py
+│   └── test_smoke.py        # simple script testing
 │── .gitignore
 │── pyproject.toml
 │── requirements.txt
