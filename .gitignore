@@ -8,3 +8,5 @@ whls/
 docs/
 models/
 vector_store/
+# Other repos
+llama.cpp/

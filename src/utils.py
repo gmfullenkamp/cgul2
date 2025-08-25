@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import logging
 import sys
+import os
+import subprocess
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Optional
+import tempfile
 
 from huggingface_hub import snapshot_download
 
@@ -19,6 +22,7 @@ from constants import models_dir
 
 def download_model(model_id: str) -> Path:
     """Download a model from Hugging Face Hub into the repo's models_dir."""
+    clogger.debug(f"Downloading {model_id}.")
     target_dir = models_dir / Path(model_id).name
     if not Path.exists(target_dir):
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -30,6 +34,112 @@ def download_model(model_id: str) -> Path:
     else:
         local_dir = target_dir
     return Path(local_dir)
+
+def _run(cmd: list[str], cwd: Optional[Path] = None) -> None:
+    """Run a command and raise with nice error text on failure."""
+    clogger.debug(f"Running subprocess: {cmd}")
+    try:
+        subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{e}") from e
+
+def _ensure_llama_cpp(llama_cpp_dir: Path) -> None:
+    """Clone llama.cpp if not present and sanity‑check the converter."""
+    if not llama_cpp_dir.exists():
+        # Shallow clone is enough for the converter
+        _run(["git", "clone", "--depth", "1", "https://github.com/ggerganov/llama.cpp.git", str(llama_cpp_dir.parent / llama_cpp_dir.name)])
+    convert_py = llama_cpp_dir / "convert_hf_to_gguf.py"
+    if not convert_py.exists():
+        raise FileNotFoundError(f"Could not find converter at {convert_py}")
+
+def download_and_convert_to_gguf(
+    model_id: str,
+    *,
+    outtype: str = "q8_0",
+    outfile: Optional[Path] = None,
+    llama_cpp_dir: Optional[Path] = None,
+    # NEW: automatically make an Ollama model from the GGUF
+    register_with_ollama: bool = True,
+    ollama_model_name: Optional[str] = None,
+    ollama_host: Optional[str] = None,   # if set, exported to OLLAMA_HOST for the create/show calls
+) -> Path:
+    """
+    Download a Hugging Face model to models_dir and convert it to GGUF using llama.cpp.
+    Optionally, register the resulting .gguf with Ollama by creating a local model.
+
+    Args:
+        model_id: HF repo id, e.g. "lmsys/vicuna-13b-v1.5".
+        outtype: Quantization / storage type: "q8_0", "f16", "f32", etc.
+        outfile: Explicit path for the final .gguf. If None, uses:
+                 <models_dir>/<repo_name>/<repo_name>.<outtype>.gguf
+        llama_cpp_dir: Path to a local llama.cpp repo. If None, assumed at: <repo_root>/llama.cpp
+        register_with_ollama: If True, create (or reuse) an Ollama model that points to this GGUF.
+        ollama_model_name: Name to give the Ollama model. If None and registering, defaults to
+                           "<repo_name>-{outtype}-local".
+        ollama_host: Optional base URL (e.g., "http://127.0.0.1:11434") for Ollama CLI; if provided,
+                     it's set in the environment for the 'ollama' subprocess calls.
+
+    Returns:
+        Path to the created (or existing) .gguf file.
+    """
+    # 1) Download HF model into local cache
+    local_model_dir = download_model(model_id)
+
+    # 2) Work out llama.cpp location
+    default_llama_path = Path.cwd() / "llama.cpp"
+    llama_cpp_dir = Path(llama_cpp_dir) if llama_cpp_dir else default_llama_path
+    _ensure_llama_cpp(llama_cpp_dir)
+
+    # 3) Decide output file
+    repo_name = Path(model_id).name  # e.g., "vicuna-13b-v1.5"
+    if outfile is None:
+        outfile = local_model_dir / f"{repo_name}.{outtype}.gguf"
+    outfile = Path(outfile)
+
+    # 4) Convert if needed
+    if not outfile.exists():
+        clogger.debug(f"Converting {model_id} to GGUF file.")
+        convert_py = llama_cpp_dir / "convert_hf_to_gguf.py"
+        cmd = [
+            sys.executable,
+            str(convert_py),
+            str(local_model_dir),       # pass local HF dir
+            "--outfile", str(outfile),
+            "--outtype", outtype,
+        ]
+        _run(cmd)  # reuse your repo's runner (raises on failure)
+
+        if not outfile.exists():
+            raise RuntimeError(f"GGUF conversion reported success but file not found: {outfile}")
+    else:
+        clogger.debug(f"GGUF already exists at {outfile}; skipping conversion.")
+
+    # 5) Optionally register with Ollama
+    if register_with_ollama:
+        # Default model name if not provided
+        model_name = ollama_model_name or f"{repo_name}-{outtype}-local"
+
+        # Quick idempotency check: does model already exist in Ollama?
+        try:
+            _run([sys.executable, "-m", "ollama", "show", model_name])
+            clogger.info(f"Ollama model '{model_name}' already exists; skipping create.")
+        except subprocess.CalledProcessError:
+            # Create a temporary Modelfile that points to our GGUF
+            gguf_posix = Path(outfile).as_posix()  # handles Windows backslashes
+            with tempfile.TemporaryDirectory() as td:
+                modelfile = Path(td) / "Modelfile"
+                modelfile.write_text(f"FROM {gguf_posix}\n", encoding="utf-8")
+                clogger.info(f"Creating Ollama model '{model_name}' from {gguf_posix}")
+                _run([sys.executable, "-m", "ollama", "create", model_name, "-f", str(modelfile)])
+
+        # Optional: quick sanity run (comment out if you don’t want a test invoke)
+        # _run_with_env(["ollama", "run", model_name, "--prompt", "hi"],
+        #               extra_env={"OLLAMA_HOST": ollama_host}, check=False)
+
+        clogger.info(f"Ollama model ready: {model_name}")
+        outfile = model_name
+
+    return outfile
 
 class ColoredFormatter(logging.Formatter):
     """Colored formatter for more excitting logs."""

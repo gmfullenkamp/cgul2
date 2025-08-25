@@ -8,6 +8,7 @@ locally to create citations when answering questions.
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from glob import glob
 
 from langchain.embeddings.base import Embeddings
 from langchain.prompts import PromptTemplate
@@ -21,8 +22,9 @@ from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer
 from transformers import GenerationConfig, pipeline
 
+from core.cite import apply_grounding
 from constants import vector_store_dir
-from utils import clogger, download_model
+from utils import clogger, download_model, download_and_convert_to_gguf
 
 
 class LocalEmbeddingFunction(Embeddings):
@@ -169,11 +171,23 @@ Answer (concisely, include citation):<|end|>
         elapsed_time = time.time() - start_time
         clogger.info(f"[Reference Time: {elapsed_time:.2f} seconds]")
 
+        # Measure LangExtract grounded context
+        start_time = time.time()
+        gguf_model = str(download_and_convert_to_gguf(model))
+        # Build grounded context
+        context_text, _ = apply_grounding(
+            question=query, retrieved_docs=context_docs, use_langextract=True,
+            langextract_model=gguf_model, langextract_provider_openai="ollama",
+            save_evidence_html="artifacts",
+        )
+        clogger.debug(f"[New Context] {context_text}")
+
         # Label each context snippet with its source
-        context_text = "\n".join(
+        context_text2 = "\n".join(
             [f"[{doc.metadata.get('source', 'Context')}] {doc.page_content}" \
              for doc in context_docs],
         )
+        clogger.debug(f"[Old Context] {context_text2}")
 
         # Fill prompt
         prompt_text = prompt_template.format(
