@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List, Tuple
 
 DEFAULT_TARGETS = [
-    "src/core/ingest.py",
     "src/core/main.py",
     "src/core/auto_doc.py",
     "src/utils.py",

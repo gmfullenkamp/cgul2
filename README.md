@@ -21,7 +21,6 @@ cgul2/
 │   ├── core/
 │   │   ├── auto_doc.py      # CLI entry point for auto doc string python repo
 │   │   ├── main.py          # CLI entry point for chatting with doc citation
-│   │   └── ingest.py        # CLI entry point for loading & chunking documents
 │   ├── gui/                 # will contain gui
 │   ├── constants.py         # folder location constants
 │   └── utils.py             # extra utilities
@@ -49,20 +48,15 @@ pip install faiss-gpu-cu12
 
 ## Usage
 
-1. Build the vector store
+1. Build vector store and run interactive Q&A
 ```bash
-python ingest.py
+python main.py
 ```
-This will:
 - Load documents from docs/.
 - Split them into chunks (default 1000 characters with 100 overlap).
 - Embed chunks with SentenceTransformer.
 - Save the FAISS vector store to src/vector_store/.
-2. Run interactive Q&A
-```bash
-python main.py
-```
-- Loads teh FAISS vector store and your local LLM.
+- Loads the FAISS vector store and your local LLM.
 - Retrieves relevant documents based on your query.
 - Generate concise, citation-aware answers.
 Sample Interaction:
@@ -75,8 +69,18 @@ Type exit to quit.
 
 ## Configuration
 
+### CLI
+
 - Document directory: docs/ by default.
 - TODO: Document CLI configurations for all files.
+
+### Models
+
+Instruct models:
+1. openai/gpt-oss-20b (HuggingFace)(16GB)
+
+Embedding models:
+1. sentence-transformers/all-MiniLM-L6-v2 (HuggingFace)(< 1GB)
 
 ## Repo Cleaning and Testing
 
@@ -99,8 +103,11 @@ python .\tests\test_smoke.py
 - (Optional) A machine with GPUs for faster inferencing times.
 
 ## TODOs
-1. Implement user conversation logging. This will help with looking at previous queries and answers.
-2. Add line specifiers or page specifiers for each doc for more precise citations.
-3. Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
-4. Quantization using bits and bytes?
-5. More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)
+- Merge ingest.py into main, annoying to run two scripts. Should just be one.
+- Update auto docs to create a readme for sub folders.
+- Have python files be chunked based on functions and classes instead of every n characters.
+- Implement user conversation logging. This will help with looking at previous queries and answers.
+- Add line specifiers or page specifiers for each doc for more precise citations. (https://pypi.org/project/langextract/)?
+- Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
+- Quantization using bits and bytes?
+- More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)

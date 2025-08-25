@@ -12,7 +12,7 @@ from pathlib import Path
 from tqdm import tqdm
 from transformers import GenerationConfig, pipeline
 
-from utils import download_model, clogger
+from utils import clogger, download_model
 
 
 def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
@@ -64,11 +64,11 @@ Docstring:<|end|>
 """
     gen_config = GenerationConfig(max_new_tokens=max_new_tokens, do_sample=False)
     output = pipe(prompt, generation_config=gen_config)
-    output = output[0]["generated_text"].strip()
-    if "assistantfinal" in output:
-        answer = output.split("assistantfinal")[-1]
-    elif "final" in output:
-        answer = output.split("final")[-1]
+    answer = output[0]["generated_text"].strip()
+    if "assistantfinal" in answer:
+        answer = answer.split("assistantfinal")[-1]
+    elif "final" in answer:
+        answer = answer.split("final")[-1]
     return answer
 
 
@@ -164,12 +164,12 @@ if __name__ == "__main__":
                         help="Path to the Python repository.")
     parser.add_argument("--model", type=str, default="openai/gpt-oss-20b",
                         help="LLM model to use.")
-    parser.add_argument("--reasoning_level", type=str, default="high",
+    parser.add_argument("--reasoning_level", type=str, default="low",
                         help="""Level of reasoning to use when responding.
                         Must be high, medium, or low.""")
     parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
                         help="How far back in time the model can think.")
-    parser.add_argument("--max_new_tokens", type=int, default=4096,
+    parser.add_argument("--max_new_tokens", type=int, default=512,
                         help="""Amount of characters the model can make when
                         generating a response. This includes context and analysis
                         of the problem.""")
