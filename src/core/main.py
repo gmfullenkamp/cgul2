@@ -206,6 +206,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="""Create a vector store for document citing using an
         embedding model then chat using an LLM with a citation ability.""",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--doc_dir", type=str, default="docs",
                         help="Path to the Python repository.")

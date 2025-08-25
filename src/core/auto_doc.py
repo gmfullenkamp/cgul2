@@ -159,6 +159,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Auto-document Python repo using an LLM.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("repo_path", type=str,
                         help="Path to the Python repository.")
