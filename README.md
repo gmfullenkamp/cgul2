@@ -82,6 +82,10 @@ Instruct models:
 Embedding models:
 1. sentence-transformers/all-MiniLM-L6-v2 (HuggingFace)(< 1GB)
 
+Auto doc models:
+1. openai/gpt-oss-20b (HuggingFace)(16GB)
+2. kdf/python-docstring-generation (HuggingFace)(2GB)
+
 ## Repo Cleaning and Testing
 
 Run the following commands and fix any issues they show:
@@ -103,11 +107,10 @@ python .\tests\test_smoke.py
 - (Optional) A machine with GPUs for faster inferencing times.
 
 ## TODOs
-- Merge ingest.py into main, annoying to run two scripts. Should just be one.
 - Update auto docs to create a readme for sub folders.
-- Have python files be chunked based on functions and classes instead of every n characters.
+- Have python files be chunked based on functions and classes instead of every n characters (in main).
 - Implement user conversation logging. This will help with looking at previous queries and answers.
 - Add line specifiers or page specifiers for each doc for more precise citations. (https://pypi.org/project/langextract/)?
-- Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)
 - Quantization using bits and bytes?
 - More customizable model use and answer parsing: (https://cookbook.openai.com/articles/gpt-oss/run-transformers)
+- Add a simple UI for nicer chatting and document uploading? (Similar to ChatGPT premium with doc uploading?)

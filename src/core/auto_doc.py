@@ -6,20 +6,20 @@ classes, and etc. so that you don't have too!
 """
 
 import ast
-from datetime import datetime, timezone
 from pathlib import Path
 
 from tqdm import tqdm
-from transformers import GenerationConfig, pipeline, \
-    AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from utils import clogger, download_model
 
 
-def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
+def load_llm(model_name: str) -> tuple:
     """Load Hugging Face text-generation pipeline for docstring generation."""
     model_name = download_model(model_name)
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token = tokenizer.eos_token
     model = AutoModelForCausalLM.from_pretrained(model_name)
     return model, tokenizer
 
@@ -129,7 +129,7 @@ if __name__ == "__main__":
                         help="Path to the Python repository.")
     parser.add_argument("--model", type=str, default="kdf/python-docstring-generation",
                         help="LLM model to use.")
-    parser.add_argument("--max_new_tokens", type=int, default=512,
+    parser.add_argument("--max_new_tokens", type=int, default=1024,
                         help="""Amount of characters the model can make when
                         generating a response. This includes context and analysis
                         of the problem.""")
