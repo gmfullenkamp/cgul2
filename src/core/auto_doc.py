@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from tqdm import tqdm
-from transformers import GenerationConfig, pipeline
+from transformers import GenerationConfig, pipeline, \
+    AutoTokenizer, AutoModelForCausalLM
 
 from utils import clogger, download_model
 
@@ -18,57 +19,40 @@ from utils import clogger, download_model
 def load_llm(model_name: str = "openai/gpt-oss-20b") -> pipeline:
     """Load Hugging Face text-generation pipeline for docstring generation."""
     model_name = download_model(model_name)
-    return pipeline(
-        "text-generation",
-        model=str(model_name),
-        torch_dtype="auto",
-        device_map="auto",
-    )
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    return model, tokenizer
 
 
-def generate_docstring(pipe: pipeline, signature: str, code: str, max_new_tokens: int,
-                       knowledge_cutoff: str, reasoning_level: str) -> str:
+def generate_docstring(model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
+                       code: str, max_new_tokens: int) -> str:
     """Generate a docstring for a function/method/class."""
-    if reasoning_level not in ["high", "medium", "low"]:
-        exception_str = f"""Reasing level must be high, medium, or low.
-        Not '{reasoning_level}'."""
-        raise ValueError(exception_str)
+    prompt = f'''<|endoftext|>
+def add(a, b):
+    return a + b
 
-    current_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-    prompt = f"""
-<|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.
-Knowledge cutoff: {knowledge_cutoff}
-Current date: {current_date}
+# docstring
+"""
+Calculate numbers add.
 
-Reasoning: {reasoning_level}
+Args:
+    a: the first number to add
+    b: the second number to add
 
-# Valid channels: analysis, commentary, final.
-# Channel must be included for every message.<|end|>
-
-<|start|>developer<|message|># Instructions
-
-Generate a concise, well-structured Python docstring for the given function or class.
-- Summarize what the code does.
-- Clearly describe parameters and return values if applicable.
-- Keep it concise and in standard Python docstring style.
-
-# Tools (none required for this task)
-
-<|end|><|start|>user<|message|>Signature:
-{signature}
-
-Code:
+Return:
+    The result of a + b
+"""
+<|endoftext|>
 {code}
 
-Docstring:<|end|>
-"""
-    gen_config = GenerationConfig(max_new_tokens=max_new_tokens, do_sample=False)
-    output = pipe(prompt, generation_config=gen_config)
-    answer = output[0]["generated_text"].strip()
-    if "assistantfinal" in answer:
-        answer = answer.split("assistantfinal")[-1]
-    elif "final" in answer:
-        answer = answer.split("final")[-1]
+# docstring
+"""'''
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(**inputs, max_length=len(prompt) + max_new_tokens,
+                             do_sample=False, return_dict_in_generate=True, num_return_sequences=1,
+                             output_scores=True, pad_token_id=tokenizer.pad_token_id,
+                             eos_token_id=tokenizer.eos_token_id)
+    answer = tokenizer.decode(outputs.sequences[0], skip_special_tokens=False)
     return answer
 
 
@@ -89,15 +73,15 @@ def extract_functions_classes(file_path: Path) -> tuple:
     return results, source
 
 
-def update_file_with_docstrings(file_path: Path, pipe: pipeline, max_new_tokens: int,
-                                knowledge_cutoff: str, reasoning_level: str) -> None:
+def update_file_with_docstrings(file_path: Path, model: AutoModelForCausalLM,
+                                tokenizer: AutoTokenizer, max_new_tokens: int) -> None:
     """Update a single Python file with generated docstrings."""
     results, source = extract_functions_classes(file_path)
     lines = source.split("\n")
     offset = 0  # Line offset due to inserted docstrings
 
-    for node, node_type, start, end in tqdm(results, desc="Documenting functions",
-                                            colour="green"):
+    for node, _, start, end in tqdm(results, desc="Documenting functions",
+                                    colour="green"):
         docstring = ast.get_docstring(node)
         if docstring:
             continue  # Skip if docstring already exists
@@ -106,29 +90,11 @@ def update_file_with_docstrings(file_path: Path, pipe: pipeline, max_new_tokens:
         snippet_lines = lines[start - 1 + offset:end + offset]
         code_snippet = "\n".join(snippet_lines)
 
-        # Build signature string
-        if node_type == "function":
-            to_join = [arg.arg for arg in node.args.args]
-            signature = f"def {node.name}({', '.join(to_join)})"
-        elif node_type == "class":
-            signature = f"class {node.name}"
-        else:
-            signature = node.name
-
         # Generate docstring
         generated_doc = generate_docstring(
-            pipe, signature, code_snippet, max_new_tokens,
-            knowledge_cutoff, reasoning_level,
+            model, tokenizer, code_snippet, max_new_tokens,
         )
-        # Remove double quotes as sometimes it does this twice
-        for quote in ('"""', "'''"):
-            if generated_doc.startswith(quote) and generated_doc.endswith(quote):
-                generated_doc = generated_doc[len(quote):-len(quote)].strip()
-                break
-        for quote in ('"""', "'''"):
-            if generated_doc.startswith(quote) and generated_doc.endswith(quote):
-                generated_doc = generated_doc[len(quote):-len(quote)].strip()
-                break
+        generated_doc = generated_doc.split("# docstring")[-1].split('"""')[1]
 
         # Insert docstring
         indent = " " * (node.col_offset + 4)
@@ -141,16 +107,14 @@ def update_file_with_docstrings(file_path: Path, pipe: pipeline, max_new_tokens:
         f.write("\n".join(lines))
 
 
-def process_repository(repo_path: str, model_name: str, max_new_tokens: int,
-                       knowledge_cutoff: str, reasoning_level: str) -> None:
+def process_repository(repo_path: str, model_name: str, max_new_tokens: int) -> None:
     """Process all Python files in a repository and add docstrings."""
-    pipe = load_llm(model_name)
+    model, tokenizer = load_llm(model_name)
     py_files = list(Path(repo_path).rglob("*.py"))
 
     for file_path in py_files:
         clogger.info(f"Documenting {Path(file_path).name}")
-        update_file_with_docstrings(file_path, pipe, max_new_tokens, knowledge_cutoff,
-                                    reasoning_level)
+        update_file_with_docstrings(file_path, model, tokenizer, max_new_tokens)
         clogger.info(f"Updated doc strings of {Path(file_path).name}")
 
 
@@ -163,18 +127,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("repo_path", type=str,
                         help="Path to the Python repository.")
-    parser.add_argument("--model", type=str, default="openai/gpt-oss-20b",
+    parser.add_argument("--model", type=str, default="kdf/python-docstring-generation",
                         help="LLM model to use.")
-    parser.add_argument("--reasoning_level", type=str, default="low",
-                        help="""Level of reasoning to use when responding.
-                        Must be high, medium, or low.""")
-    parser.add_argument("--knowledge_cutoff", type=str, default="2024-06",
-                        help="How far back in time the model can think.")
     parser.add_argument("--max_new_tokens", type=int, default=512,
                         help="""Amount of characters the model can make when
                         generating a response. This includes context and analysis
                         of the problem.""")
 
     args = parser.parse_args()
-    process_repository(args.repo_path, args.model, args.max_new_tokens,
-                       args.knowledge_cutoff, args.reasoning_level)
+    process_repository(args.repo_path, args.model, args.max_new_tokens)
