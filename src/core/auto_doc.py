@@ -28,19 +28,19 @@ def generate_docstring(model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
                        code: str, max_new_tokens: int) -> str:
     """Generate a docstring for a function/method/class."""
     prompt = f'''<|endoftext|>
-def add(a, b):
+def add(a: int = 5, b: int = 7):
     return a + b
 
 # docstring
 """
-Calculate numbers add.
+Adds together two numbers a and b.
 
-Args:
-    a: the first number to add
-    b: the second number to add
+Parameters:
+    a (int): the first number to add (default: 5)
+    b (int): the second number to add (default: 7)
 
-Return:
-    The result of a + b
+Returns:
+    int: the result of a + b
 """
 <|endoftext|>
 {code}
