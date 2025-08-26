@@ -105,17 +105,119 @@ def update_file_with_docstrings(file_path: Path, model: AutoModelForCausalLM,
     # Write back updated file
     with Path.open(file_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
+    clogger.info(f"Updated doc strings of {Path(file_path).name}")
+
+
+def summarize_python_file(p: Path) -> tuple:
+    """
+    Return a summary tuple:
+      (module_name, module_doc, classes[(name, doc)], functions[(name, doc)])
+    """
+    try:
+        src = p.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        src = p.read_text(errors="ignore")
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return (p.stem, None, [], [])
+
+    module_doc = ast.get_docstring(tree)
+    classes = []
+    functions = []
+
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef):
+            classes.append((node.name, ast.get_docstring(node)))
+        elif isinstance(node, ast.FunctionDef):
+            functions.append((node.name, ast.get_docstring(node)))
+
+    return (p.stem, module_doc, classes, functions)
+
+
+def create_readme_for_folder(folder: Path, py_files: list, model, tokenizer,
+                             max_new_tokens: int) -> None:
+    """
+    Creates or overwrites folder/README.md with a structured summary of the folder’s Python files.
+    Uses lightweight AST parsing; you can optionally plug LLM formatting in the marked section.
+    """
+    if not py_files:
+        return
+    readme_path = folder / "README.md"
+    if readme_path.exists():
+        clogger.info(f"README.md already exists in {folder}; skipping")
+        return
+
+    # Gather structured summaries
+    summaries = [summarize_python_file(p) for p in sorted(py_files)]
+
+    # ---- Optional: LLM-enhanced intro (plug your model in here if desired) ----
+    # If you want to use your `model` / `tokenizer` to produce a higher-level overview,
+    # build a prompt from `summaries` and generate a paragraph. For now we keep it deterministic.
+    folder_title = folder.name if folder.name != "" else "Repository"
+    intro = (
+        f"# {folder_title}\n\n"
+        f"This folder contains the following Python modules. "
+        f"Auto-generated README based on module/class/function docstrings.\n\n"
+    )
+
+    # Build markdown content
+    lines = [intro, "## Contents\n"]
+    for mod_name, mod_doc, classes, functions in summaries:
+        lines.append(f"### `{mod_name}.py`")
+        if mod_doc:
+            lines.append(f"{mod_doc.strip()}\n")
+        else:
+            lines.append("_No module docstring found._\n")
+
+        if classes:
+            lines.append("**Classes**")
+            for cname, cdoc in classes:
+                desc = cdoc.strip().splitlines()[0] if cdoc else "No class docstring."
+                lines.append(f"- `{cname}` — {desc}")
+            lines.append("")  # spacer
+
+        if functions:
+            lines.append("**Functions**")
+            for fname, fdoc in functions:
+                desc = fdoc.strip().splitlines()[0] if fdoc else "No function docstring."
+                lines.append(f"- `{fname}()` — {desc}")
+            lines.append("")  # spacer
+
+    # TODO: Implement model and tokenizer with file summaries for better readme
+
+    # Write README.md
+    readme_path = folder / "README.md"
+    readme_path.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+    clogger.info(f"Created README.md in {folder}")
 
 
 def process_repository(repo_path: str, model_name: str, max_new_tokens: int) -> None:
-    """Process all Python files in a repository and add docstrings."""
+    """Process all Python files in a repository and add docstrings, then create README.md in each folder."""
     model, tokenizer = load_llm(model_name)
     py_files = list(Path(repo_path).rglob("*.py"))
 
     for file_path in py_files:
         clogger.info(f"Documenting {Path(file_path).name}")
         update_file_with_docstrings(file_path, model, tokenizer, max_new_tokens)
-        clogger.info(f"Updated doc strings of {Path(file_path).name}")
+
+    # Unique directories that contain at least one .py
+    folders_with_py = sorted({p.parent for p in py_files})
+
+    for folder in folders_with_py:
+        # Collect only the .py files directly inside this folder (not recursively)
+        immediate_py_files = sorted([p for p in folder.glob("*.py") if p.is_file()])
+        if not immediate_py_files:
+            continue
+
+        clogger.info(f"Creating README.md for {folder}")
+        create_readme_for_folder(
+            folder=folder,
+            py_files=immediate_py_files,
+            model=model,
+            tokenizer=tokenizer,
+            max_new_tokens=max_new_tokens,
+        )
 
 
 if __name__ == "__main__":
